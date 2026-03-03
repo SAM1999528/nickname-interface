@@ -1,21 +1,16 @@
-require('dotenv').config(); // Load environment variables from .env file
+require('dotenv').config();
 const express = require("express");
 const cors = require("cors");
-const mysql = require('mysql2/promise'); // Import mysql2/promise for async/await
-const { pinyin } = require('pinyin-pro'); // Import pinyin-pro for homophone check
+const mysql = require('mysql2/promise');
+const { pinyin } = require('pinyin-pro');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' folder
-
-// 根路径路由 - 返回 index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 // Configure MySQL connection pool
 const pool = mysql.createPool({
@@ -27,10 +22,10 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  connectTimeout: 5000 // 5 seconds timeout
+  connectTimeout: 5000
 });
 
-// Helper: Get common characters count between two strings
+// Helper functions
 function getCommonCharsCount(s1, s2) {
   const chars1 = [...s1];
   const chars2 = [...s2];
@@ -47,27 +42,19 @@ function getCommonCharsCount(s1, s2) {
   return count;
 }
 
-// Helper: Get pinyin string (without tones)
 function getCleanPinyin(text) {
   return pinyin(text, { toneType: 'none', type: 'array' }).join('');
 }
 
-// Helper: Check similarity based on your rules (2-char overlap or homophones)
 function isSimilar(target, candidate) {
-  // 1. Check if they share at least 2 characters (两字重复)
   if (getCommonCharsCount(target, candidate) >= 2) return true;
-  
-  // 2. Check if they are homophones (谐音相同)
   if (getCleanPinyin(target) === getCleanPinyin(candidate)) return true;
-  
   return false;
 }
 
-// Utility function to get random unique items from a source array
 function getRandomUniqueItems(source, count) {
   const pool = [...source];
   const limit = Math.min(count, pool.length);
-  // Fisher-Yates shuffle
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const tmp = pool[i];
@@ -77,7 +64,7 @@ function getRandomUniqueItems(source, count) {
   return pool.slice(0, limit);
 }
 
-// New endpoint to get 9 random unique nicknames
+// API Routes
 app.get("/api/nicknames", async (req, res) => {
   try {
     const [rows] = await pool.execute("SELECT 花名 FROM nick_name WHERE 释放情况 = '可释放'");
@@ -85,12 +72,11 @@ app.get("/api/nicknames", async (req, res) => {
     const nicknames = getRandomUniqueItems(nicknamePool, 9);
     res.json({ nicknames });
   } catch (error) {
-    console.error("Error fetching nicknames from database:", error.message);
+    console.error("Error fetching nicknames:", error.message);
     res.status(500).json({ message: "Error fetching nicknames", error: error.message });
   }
 });
 
-// Existing endpoint, now also using the new utility function
 app.get("/api/nickname", async (req, res) => {
   try {
     const [rows] = await pool.execute("SELECT 花名 FROM nick_name WHERE 释放情况 = '可释放'");
@@ -101,12 +87,11 @@ app.get("/api/nickname", async (req, res) => {
     const nicknames = getRandomUniqueItems(nicknamePool, 1);
     res.json({ nickname: nicknames[0] });
   } catch (error) {
-    console.error("Error fetching single nickname from database:", error.message);
+    console.error("Error fetching nickname:", error.message);
     res.status(500).json({ message: "Error fetching nickname", error: error.message });
   }
 });
 
-// Confirm and sync endpoint based on flowchart
 app.post("/api/confirm-nickname", async (req, res) => {
   const { nickname, employeeId } = req.body;
   
@@ -115,19 +100,15 @@ app.post("/api/confirm-nickname", async (req, res) => {
   }
 
   try {
-    // 1. Fetch all currently '可释放' nicknames to check for similarity
     const [rows] = await pool.execute("SELECT 花名 FROM nick_name WHERE 释放情况 = '可释放'");
     const allReleasable = rows.map(row => row.花名);
     
-    // 2. Identify similar nicknames that should be locked
     const similarNicknames = allReleasable.filter(name => isSimilar(nickname, name));
     
-    // Always include the picked nickname itself just in case
     if (!similarNicknames.includes(nickname)) {
       similarNicknames.push(nickname);
     }
     
-    // 3. Batch update their status to '不可释放'
     if (similarNicknames.length > 0) {
       const placeholders = similarNicknames.map(() => '?').join(',');
       const updateQuery = `UPDATE nick_name SET 释放情况 = '不可释放' WHERE 花名 IN (${placeholders})`;
@@ -135,9 +116,8 @@ app.post("/api/confirm-nickname", async (req, res) => {
       console.log(`Locked ${similarNicknames.length} nicknames: ${similarNicknames.join(', ')}`);
     }
     
-    // 4. Simulate sync to Beisen
     console.log(`Syncing employee ${employeeId} with nickname ${nickname} to Beisen...`);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     res.json({ 
       success: true, 
@@ -150,7 +130,6 @@ app.post("/api/confirm-nickname", async (req, res) => {
   }
 });
 
-// NEW: Record employee departure and calculate release schedule
 app.post("/api/record-departure", async (req, res) => {
   const { nickname, departureDate, isFormal, department, joinDate } = req.body;
   
@@ -164,45 +143,32 @@ app.post("/api/record-departure", async (req, res) => {
     const tenureMs = depDate - jDate;
     const tenureDays = tenureMs / (1000 * 60 * 60 * 24);
     
-    let releaseDate = null; // null means never release
+    let releaseDate = null;
     let newStatus = '不可释放';
 
-    // Rule (3): Special Departments (修合汤, 将军汤) - Never release
     if (department === '修合汤' || department === '将军汤') {
       releaseDate = null;
       newStatus = '永久锁定';
-    } 
-    // Rule (1): Formal employees - Never release
-    else if (isFormal) {
+    } else if (isFormal) {
       releaseDate = null;
       newStatus = '永久锁定';
-    } 
-    // Rule (2): Non-formal employees
-    else {
+    } else {
       if (tenureDays <= 7) {
-        // Use < 1 week: Release after 1 month
         releaseDate = new Date(depDate);
         releaseDate.setMonth(releaseDate.getMonth() + 1);
       } else if (tenureDays <= 30) {
-        // Use < 1 month: Release after 3 months
         releaseDate = new Date(depDate);
         releaseDate.setMonth(releaseDate.getMonth() + 3);
       } else if (tenureDays <= 90) {
-        // Use 1-3 months: Release after 2 years
         releaseDate = new Date(depDate);
         releaseDate.setFullYear(releaseDate.getFullYear() + 2);
       } else {
-        // More than 3 months but not formal? 
-        // Based on your rules, 1 year+ tenure is similar to formal for similarity check.
-        // Assuming > 3 months non-formal follows the 2-year rule or is manual.
         releaseDate = new Date(depDate);
         releaseDate.setFullYear(releaseDate.getFullYear() + 2);
       }
       newStatus = '离职冻结中';
     }
 
-    // Update database with release info
-    // Note: You need to add '预计释放日期' column to your table
     const query = `
       UPDATE nick_name 
       SET 释放情况 = ?, 预计释放日期 = ? 
@@ -222,7 +188,6 @@ app.post("/api/record-departure", async (req, res) => {
   }
 });
 
-// NEW: Manual trigger to check and release expired nicknames
 app.get("/api/check-releases", async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
@@ -237,17 +202,35 @@ app.get("/api/check-releases", async (req, res) => {
   }
 });
 
-// 通配符路由 - 返回 index.html（用于前端路由）
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// Serve static files from public directory
+const publicPath = path.join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+// Root route - serve index.html
+app.get('/', (req, res) => {
+  const indexPath = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('index.html not found');
+  }
 });
 
-// 本地开发时启动服务器
+// Catch-all route - serve index.html for any other route
+app.get('*', (req, res) => {
+  const indexPath = path.join(publicPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send('index.html not found');
+  }
+});
+
+// Local development
 if (process.env.NODE_ENV !== 'production') {
   app.listen(port, () => {
     console.log(`Nickname API listening on port ${port}`);
   });
 }
 
-// Vercel Serverless 导出
 module.exports = app;
