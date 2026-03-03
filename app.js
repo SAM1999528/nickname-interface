@@ -207,12 +207,12 @@ const publicPath = path.join(__dirname, 'public');
 
 // Function to find and read index.html
 function serveIndexHtml(res) {
-  // Try multiple possible paths
+  // Try multiple possible paths (index.html is directly in /var/task, not in public folder)
   const possiblePaths = [
-    path.join(__dirname, 'public', 'index.html'),
-    path.join('/var/task', 'public', 'index.html'),
-    path.join(process.cwd(), 'public', 'index.html'),
-    './public/index.html'
+    path.join(__dirname, 'index.html'),
+    path.join('/var/task', 'index.html'),
+    path.join(process.cwd(), 'index.html'),
+    './index.html'
   ];
   
   for (const indexPath of possiblePaths) {
