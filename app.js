@@ -204,25 +204,30 @@ app.get("/api/check-releases", async (req, res) => {
 
 // Serve static files from public directory
 const publicPath = path.join(__dirname, 'public');
-app.use(express.static(publicPath));
 
 // Root route - serve index.html
 app.get('/', (req, res) => {
   const indexPath = path.join(publicPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('index.html not found');
+  try {
+    const content = fs.readFileSync(indexPath, 'utf8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(content);
+  } catch (error) {
+    console.error('Error reading index.html:', error.message);
+    res.status(404).send('index.html not found at: ' + indexPath);
   }
 });
 
 // Catch-all route - serve index.html for any other route
 app.get('*', (req, res) => {
   const indexPath = path.join(publicPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).send('index.html not found');
+  try {
+    const content = fs.readFileSync(indexPath, 'utf8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(content);
+  } catch (error) {
+    console.error('Error reading index.html:', error.message);
+    res.status(404).send('index.html not found at: ' + indexPath);
   }
 });
 
