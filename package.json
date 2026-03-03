@@ -1,0 +1,15 @@
+{
+  "name": "nickname_interface",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^4.19.0",
+    "mysql2": "^3.18.0",
+    "pinyin-pro": "^3.28.0"
+  }
+}

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>甘草医生 · 入职向导</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        :root {
+            --deep-black: #1A1A1A;
+            --soft-white: #FFFFFF;
+            --elegant-brown: #8B4513;
+            --light-bg: #F9F7F2; /* 极淡的米白色背景 */
+            --border-color: #E5E5E5;
+        }
+        body {
+            background-color: var(--light-bg);
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--deep-black);
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* 标题装饰 */
+        .title-dot {
+            background-color: var(--elegant-brown);
+        }
+
+        /* 卡片设计 */
+        .info-card {
+            background: var(--soft-white);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+        }
+
+        .nickname-card {
+            background: var(--soft-white);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: var(--deep-black);
+        }
+        
+        .nickname-card:hover {
+            border-color: var(--elegant-brown);
+            transform: translateY(-2px);
+        }
+
+        .nickname-card.selected {
+            background: var(--elegant-brown);
+            color: var(--soft-white);
+            border-color: var(--elegant-brown);
+            box-shadow: 0 10px 20px rgba(139, 69, 19, 0.2);
+        }
+
+        /* 按钮设计 */
+        .btn-refresh {
+            color: var(--elegant-brown);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .btn-refresh:hover {
+            background: rgba(139, 69, 19, 0.05);
+        }
+
+        .btn-main {
+            background: var(--elegant-brown);
+            color: var(--soft-white);
+            border-radius: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(139, 69, 19, 0.2);
+        }
+        .btn-main:active {
+            transform: scale(0.98);
+        }
+        .btn-main:disabled {
+            background: #D1D1D1;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* 成功页图标 */
+        .success-circle {
+            background: var(--elegant-brown);
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--soft-white);
+        }
+
+        /* 弹窗设计 */
+        .modal-card {
+            background: var(--soft-white);
+            border-radius: 24px;
+            overflow: hidden;
+        }
+        .modal-btn-confirm {
+            background: var(--elegant-brown);
+            color: var(--soft-white);
+            border-radius: 12px;
+        }
+        .modal-btn-cancel {
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="max-w-md mx-auto min-h-screen p-6 pb-24">
+        <div v-if="step === 'selection'" class="animate__animated animate__fadeIn">
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-10">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-6 title-dot rounded-full"></div>
+                    <span class="font-bold text-lg tracking-tight">甘草医生 · 入职向导</span>
+                </div>
+                <span class="text-xs text-gray-400 font-medium px-2 py-1 bg-gray-100 rounded">身份核验已通过</span>
+            </div>
+
+            <!-- Greeting -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold mb-2">你好，{{ userName }}</h1>
+                <p class="text-gray-400 text-sm">很高兴在这里见到你</p>
+            </div>
+            
+            <!-- 手动输入信息（当没有参数时显示） -->
+            <div v-if="showInputForm" class="info-card p-6 mb-8">
+                <h3 class="font-bold mb-4 text-lg">请输入您的信息</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">姓名</label>
+                        <input v-model="inputName" type="text" placeholder="请输入姓名" class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8B4513]">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-500 mb-1">手机号</label>
+                        <input v-model="inputPhone" type="text" placeholder="请输入手机号" class="w-full p-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#8B4513]">
+                    </div>
+                    <button @click="saveUserInfo" class="btn-main w-full py-3">确认</button>
+                </div>
+            </div>
+            
+            <!-- Welcome Info -->
+            <div class="info-card p-6 mb-8 leading-relaxed text-gray-600 text-sm relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-brown-600" style="background-color: var(--elegant-brown);"></div>
+                欢迎加入甘草大家庭！我们秉持“君臣佐使”的文化理念，倡导花名文化。每位成员犹如一味中药，各具专长，共同成就团队的和谐与卓越。
+            </div>
+
+            <!-- Employee Info Grid -->
+            <div class="grid grid-cols-2 gap-4 mb-10">
+                <div class="info-card p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-1 font-bold">Employee ID</div>
+                    <div class="font-mono font-bold text-sm">{{ employeeId }}</div>
+                </div>
+                <div class="info-card p-4">
+                    <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-1 font-bold">Mobile</div>
+                    <div class="font-mono font-bold text-sm">{{ maskedPhone }}</div>
+                </div>
+            </div>
+
+            <!-- Selection Section -->
+            <div class="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 class="font-bold text-xl mb-1">选择甘草花名</h2>
+                    <div class="h-1 w-8 title-dot rounded-full"></div>
+                </div>
+                <button @click="fetchNicknames" class="btn-refresh text-xs">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    换一批
+                </button>
+            </div>
+
+            <!-- Nickname Grid -->
+            <div class="grid grid-cols-3 gap-3 mb-12">
+                <div 
+                    v-for="name in nicknames" 
+                    :key="name"
+                    @click="selectedNickname = name"
+                    :class="['nickname-card h-20 flex items-center justify-center cursor-pointer text-base font-medium', selectedNickname === name ? 'selected' : '']"
+                >
+                    {{ name }}
+                </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-[#F9F7F2] via-[#F9F7F2] to-transparent">
+                <button 
+                    @click="showConfirmModal = true"
+                    :disabled="!selectedNickname"
+                    class="btn-main w-full py-4 max-w-md mx-auto block text-lg"
+                >
+                    {{ selectedNickname ? `确认选择：${selectedNickname}` : '请选取你的花名' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Success View -->
+        <div v-if="step === 'success'" class="animate__animated animate__fadeIn min-h-[80vh] flex flex-col items-center justify-center text-center p-8">
+            <div class="success-circle mb-10 shadow-2xl animate__animated animate__bounceIn">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4">New Identity</div>
+            <div class="text-6xl font-black mb-12 tracking-tighter" style="color: var(--elegant-brown);">{{ selectedNickname }}</div>
+            <div class="text-gray-500 leading-relaxed max-w-[240px]">
+                您的身份已经同步完成，<br>
+                愿您的甘草生涯顺遂无虞。
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div v-if="showConfirmModal" class="fixed inset-0 z-50 flex items-center justify-center p-6 animate__animated animate__fadeIn bg-black/40 backdrop-blur-sm">
+            <div class="modal-card w-full max-w-xs p-8 text-center shadow-2xl animate__animated animate__zoomIn">
+                <h3 class="text-xl font-bold mb-3">确认你的花名</h3>
+                <p class="text-gray-500 mb-8 text-sm px-2">
+                    确定将“<span class="text-black font-bold">{{ selectedNickname }}</span>”作为您的专属花名吗？
+                </p>
+                <div class="space-y-3">
+                    <button @click="confirmSelection" class="modal-btn-confirm py-3.5 w-full font-bold" :disabled="isConfirming">
+                        {{ isConfirming ? '同步中...' : '确定提交' }}
+                    </button>
+                    <button @click="showConfirmModal = false" class="modal-btn-cancel py-3 w-full text-sm font-medium" :disabled="isConfirming">
+                        我再想想
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+        createApp({
+            setup() {
+                const step = ref('selection');
+                const nicknames = ref([]);
+                const selectedNickname = ref('');
+                const showConfirmModal = ref(false);
+                const isConfirming = ref(false);
+                
+                // 输入表单相关
+                const showInputForm = ref(false);
+                const inputName = ref('');
+                const inputPhone = ref('');
+                
+                // 从 URL 参数获取用户信息
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlName = urlParams.get('name');
+                const urlPhone = urlParams.get('phone');
+                const urlEid = urlParams.get('eid');
+                
+                // 如果有 URL 参数，保存到 localStorage
+                if (urlName) localStorage.setItem('userName', urlName);
+                if (urlPhone) localStorage.setItem('phone', urlPhone);
+                if (urlEid) localStorage.setItem('employeeId', urlEid);
+                
+                // 从 localStorage 读取
+                const userName = ref(localStorage.getItem('userName') || '新同事');
+                const phone = ref(localStorage.getItem('phone') || '');
+                const employeeId = ref(localStorage.getItem('employeeId') || 'BS-2026001');
+                
+                // 检查是否需要显示输入表单（没有URL参数且没有localStorage数据）
+                if (!urlName && !localStorage.getItem('userName')) {
+                    showInputForm.value = true;
+                }
+                
+                // 保存用户输入的信息
+                const saveUserInfo = () => {
+                    if (inputName.value) {
+                        localStorage.setItem('userName', inputName.value);
+                        userName.value = inputName.value;
+                    }
+                    if (inputPhone.value) {
+                        localStorage.setItem('phone', inputPhone.value);
+                        phone.value = inputPhone.value;
+                    }
+                    showInputForm.value = false;
+                };
+                
+                // 手机号脱敏显示
+                const maskedPhone = computed(() => {
+                    if (!phone.value) return '未提供手机号';
+                    if (phone.value.length === 11) {
+                        return phone.value.slice(0, 3) + '****' + phone.value.slice(7);
+                    }
+                    return phone.value;
+                });
+
+                const fetchNicknames = async () => {
+                    try {
+                        const res = await fetch('/api/nicknames');
+                        const data = await res.json();
+                        nicknames.value = data.nicknames;
+                    } catch (error) { console.error(error); }
+                };
+
+                const confirmSelection = async () => {
+                    isConfirming.value = true;
+                    try {
+                        const res = await fetch('/api/confirm-nickname', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                nickname: selectedNickname.value, 
+                                employeeId: employeeId.value,
+                                phone: phone.value
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            step.value = 'success';
+                            showConfirmModal.value = false;
+                        }
+                    } catch (error) { alert('同步失败'); }
+                    finally { isConfirming.value = false; }
+                };
+
+                onMounted(fetchNicknames);
+                return { 
+                    step, nicknames, selectedNickname, showConfirmModal, isConfirming, 
+                    userName, phone, employeeId, maskedPhone,
+                    showInputForm, inputName, inputPhone, saveUserInfo,
+                    fetchNicknames, confirmSelection 
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
