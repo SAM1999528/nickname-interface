@@ -236,6 +236,11 @@ app.get("/api/check-releases", async (req, res) => {
   }
 });
 
+// 通配符路由 - 返回 index.html（用于前端路由）
+app.get('*', (req, res) => {
+  res.sendFile(__dirname + '/public/index.html');
+});
+
 // 本地开发时启动服务器
 if (process.env.NODE_ENV !== 'production') {
   app.listen(port, () => {
