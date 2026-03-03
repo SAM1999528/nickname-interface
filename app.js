@@ -3,17 +3,18 @@ const express = require("express");
 const cors = require("cors");
 const mysql = require('mysql2/promise'); // Import mysql2/promise for async/await
 const { pinyin } = require('pinyin-pro'); // Import pinyin-pro for homophone check
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Serve static files from 'public' folder
+app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from 'public' folder
 
 // 根路径路由 - 返回 index.html
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Configure MySQL connection pool
@@ -238,7 +239,7 @@ app.get("/api/check-releases", async (req, res) => {
 
 // 通配符路由 - 返回 index.html（用于前端路由）
 app.get('*', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // 本地开发时启动服务器
