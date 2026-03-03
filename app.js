@@ -205,30 +205,50 @@ app.get("/api/check-releases", async (req, res) => {
 // Serve static files from public directory
 const publicPath = path.join(__dirname, 'public');
 
+// Function to find and read index.html
+function serveIndexHtml(res) {
+  // Try multiple possible paths
+  const possiblePaths = [
+    path.join(__dirname, 'public', 'index.html'),
+    path.join('/var/task', 'public', 'index.html'),
+    path.join(process.cwd(), 'public', 'index.html'),
+    './public/index.html'
+  ];
+  
+  for (const indexPath of possiblePaths) {
+    try {
+      if (fs.existsSync(indexPath)) {
+        const content = fs.readFileSync(indexPath, 'utf8');
+        res.setHeader('Content-Type', 'text/html');
+        return res.send(content);
+      }
+    } catch (error) {
+      console.log('Tried path:', indexPath, '- Error:', error.message);
+    }
+  }
+  
+  // If not found, show debug info
+  res.status(404).send(`
+    <h1>index.html not found</h1>
+    <p>Tried paths:</p>
+    <ul>
+      ${possiblePaths.map(p => `<li>${p}</li>`).join('')}
+    </ul>
+    <p>__dirname: ${__dirname}</p>
+    <p>process.cwd(): ${process.cwd()}</p>
+    <p>Files in __dirname:</p>
+    <pre>${fs.existsSync(__dirname) ? fs.readdirSync(__dirname).join('\n') : 'Directory not found'}</pre>
+  `);
+}
+
 // Root route - serve index.html
 app.get('/', (req, res) => {
-  const indexPath = path.join(publicPath, 'index.html');
-  try {
-    const content = fs.readFileSync(indexPath, 'utf8');
-    res.setHeader('Content-Type', 'text/html');
-    res.send(content);
-  } catch (error) {
-    console.error('Error reading index.html:', error.message);
-    res.status(404).send('index.html not found at: ' + indexPath);
-  }
+  serveIndexHtml(res);
 });
 
 // Catch-all route - serve index.html for any other route
 app.get('*', (req, res) => {
-  const indexPath = path.join(publicPath, 'index.html');
-  try {
-    const content = fs.readFileSync(indexPath, 'utf8');
-    res.setHeader('Content-Type', 'text/html');
-    res.send(content);
-  } catch (error) {
-    console.error('Error reading index.html:', error.message);
-    res.status(404).send('index.html not found at: ' + indexPath);
-  }
+  serveIndexHtml(res);
 });
 
 // Local development
